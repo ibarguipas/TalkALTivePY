@@ -13,21 +13,54 @@ dispositivos_disponibles = sd.query_devices()
 # Filtrar solo los dispositivos de salida
 dispositivos_salida = [info['name'] for info in dispositivos_disponibles if info['max_output_channels'] > 0]
 
-# Variable global para almacenar el nombre del dispositivo seleccionado
+# Variables globales para almacenar el nombre del dispositivo seleccionado y la voz seleccionada
 dispositivo_seleccionado = None
+voz_seleccionada = None
 
 
 def generar_audio():
     texto = entrada_texto.get()
-    # Generar audio a partir del texto
-    engine.say(texto)
-    engine.runAndWait()
+    if voz_seleccionada is None:
+        texto_bloque.config(state="normal")
+        texto_bloque.delete(1.0, "end")
+        texto_bloque.insert("end", "Por favor, selecciona una voz antes de generar el audio.")
+        texto_bloque.config(state="disabled")
+    else:
+        # Configurar la voz
+        engine.setProperty('voice', voz_seleccionada.id)
+        # Generar audio a partir del texto
+        engine.say(texto)
+        engine.runAndWait()
 
 
-def seleccionar_dispositivo():
+def actualizar_mensaje(event=None):
+    texto = entrada_texto.get()
+    texto_bloque.config(state="normal")
+    texto_bloque.delete(1.0, "end")
+    texto_bloque.insert("end", texto)
+    texto_bloque.config(state="disabled")
+
+
+def seleccionar_dispositivo(event=None):
     global dispositivo_seleccionado
     dispositivo_seleccionado = combo_dispositivos.get()  # Obtener el nombre del dispositivo seleccionado desde el Combobox
     print("Dispositivo de salida seleccionado:", dispositivo_seleccionado)
+
+
+def seleccionar_voz(event=None):
+    global voz_seleccionada
+    nombre_voz_seleccionada = combo_voz.get()
+    for voz in voces_disponibles:
+        if voz.name == nombre_voz_seleccionada:
+            voz_seleccionada = voz
+            actualizar_mensaje()  # Reflejar el texto escrito en el mensaje
+            # Limpiar el mensaje al seleccionar una voz
+            texto_bloque.config(state="normal")
+            texto_bloque.delete(1.0, "end")
+            texto_bloque.insert("end", entrada_texto.get())
+            texto_bloque.config(state="disabled")
+            break
+    print("Voz seleccionada:", voz_seleccionada)
 
 
 def transmitir_audio():
@@ -56,7 +89,6 @@ def transmitir_audio():
         sd.wait()
 
 
-
 # Configuración de la interfaz gráfica
 root = tk.Tk()
 root.title("Transmitir Texto a Voz por Dispositivo de Salida")
@@ -64,26 +96,45 @@ root.title("Transmitir Texto a Voz por Dispositivo de Salida")
 frame = ttk.Frame(root)
 frame.grid(row=0, column=0, padx=10, pady=10)
 
-etiqueta_texto = ttk.Label(frame, text="Texto:")
-etiqueta_texto.grid(row=0, column=0, sticky="w")
+etiqueta_bloque = ttk.Label(frame, text="Mensaje:")
+etiqueta_bloque.grid(row=0, column=0, sticky="w")
 
-entrada_texto = ttk.Entry(frame, width=40)
-entrada_texto.grid(row=0, column=1, padx=5, pady=5)
+texto_bloque = tk.Text(frame, height=3, width=50, state="disabled")
+texto_bloque.grid(row=0, column=1, padx=5, pady=5)
+
+etiqueta_texto = ttk.Label(frame, text="Texto:")
+etiqueta_texto.grid(row=1, column=0, sticky="w")
+
+entrada_texto = ttk.Entry(frame, width=50)
+entrada_texto.grid(row=1, column=1, padx=5, pady=5)
+entrada_texto.bind("<KeyRelease>", actualizar_mensaje)
 
 boton_generar_audio = ttk.Button(frame, text="Generar Audio", command=generar_audio)
-boton_generar_audio.grid(row=0, column=2, padx=5, pady=5)
-
-etiqueta_dispositivos = ttk.Label(frame, text="Seleccionar Dispositivo de Salida:")
-etiqueta_dispositivos.grid(row=1, column=0, sticky="w")
-
-combo_dispositivos = ttk.Combobox(frame, values=dispositivos_salida, state="readonly")
-combo_dispositivos.grid(row=1, column=1, padx=5, pady=5)
-combo_dispositivos.current(0)  # Seleccionar el primer dispositivo por defecto
-
-boton_seleccionar_dispositivo = ttk.Button(frame, text="Seleccionar", command=seleccionar_dispositivo)
-boton_seleccionar_dispositivo.grid(row=1, column=2, padx=5, pady=5)
+boton_generar_audio.grid(row=1, column=2, padx=5, pady=5)
 
 boton_transmitir_audio = ttk.Button(frame, text="Transmitir Audio", command=transmitir_audio)
-boton_transmitir_audio.grid(row=2, column=1, padx=5, pady=5)
+boton_transmitir_audio.grid(row=2, column=2, padx=5, pady=5)
+
+etiqueta_dispositivos = ttk.Label(frame, text="Seleccionar Dispositivo de Salida:")
+etiqueta_dispositivos.grid(row=2, column=0, sticky="w")
+
+combo_dispositivos = ttk.Combobox(frame, values=dispositivos_salida, state="readonly", width=48)
+combo_dispositivos.grid(row=2, column=1, padx=5, pady=5)
+# Configurar valor inicial del Combobox como None
+combo_dispositivos.set('')
+combo_dispositivos.bind("<<ComboboxSelected>>", seleccionar_dispositivo)
+
+etiqueta_voz = ttk.Label(frame, text="Seleccionar Voz:")
+etiqueta_voz.grid(row=3, column=0, sticky="w")
+
+# Obtener lista de voces disponibles
+voces_disponibles = engine.getProperty('voices')
+voces_nombres = [voz.name for voz in voces_disponibles]
+
+combo_voz = ttk.Combobox(frame, values=voces_nombres, state="readonly", width=48)
+combo_voz.grid(row=3, column=1, padx=5, pady=5)
+# Configurar valor inicial del Combobox como None
+combo_voz.set('')
+combo_voz.bind("<<ComboboxSelected>>", seleccionar_voz)
 
 root.mainloop()
