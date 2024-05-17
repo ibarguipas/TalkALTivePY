@@ -148,7 +148,7 @@ root.resizable(False, False)  # Desactiva la capacidad de redimensionar la venta
 root.title("TalkALTive")  # Establece el título de la ventana
 
 # Cambiar ícono de la ventana
-logo =  resource_path("logo.ico")
+logo = resource_path("logo.ico")
 
 root.iconbitmap(logo)  # Establece el icono de la ventana
 
